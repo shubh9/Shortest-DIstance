@@ -1,0 +1,85 @@
+(require 2htdp/image)
+(require 2htdp/universe)
+(require spd/tags)
+
+
+;; =================
+;; Constants:
+
+(define WIDTH 600)
+(define HEIGHT 600)
+
+(define MTS (rectangle WIDTH HEIGHT "solid" "green"))
+
+
+
+
+;; =================
+;; Data definitions:
+            
+(define-struct position (x-cor y-cor))
+;; x-cor is number x cooridnate
+;;y-cor is number y coordinate
+
+(define P1 (make-position 20 30))
+(define P2 (make-position 200 300))
+(define P3 (make-position 0 0))
+(define P4 (make-position 10 500))
+(define P5 (make-position 600 20))
+
+
+(define-struct trace (p1 p2))
+;; P1 is false or position
+;; P2 is false position
+
+(define L0(make-trace false false))
+(define L1(make-trace P1 P2))
+(define L2(make-trace P2 P3))
+(define L3(make-trace P3 P1))
+;(define L4(make-trace P1 false))
+;(define L5(make-trace false P1))
+(define L6(make-trace P2 P1))
+(define L7 (make-trace P4 P5))
+
+;; =================
+;; Functions:
+
+;; trace -> trace
+;; start the world with (main 0)
+;; 
+(define (main t)
+  (big-bang t                        ; trace
+            (to-draw   render)))       ; trace -> Image
+           ; (on-mouse  point1)
+           ; (on-mouse  create-trace))); trace Integer Integer MouseEvent -> trace
+
+;-------------------------------------------------------------------------
+(@HtDF render)
+;; trace -> Image
+;; render the trace into a line image at appropriate place on MTS 
+;(check-expect (render L1) (line (trace-p1 L1) (trace-p2 L1) "black")) 
+              
+;(define (render t) MTS) ;stub
+(define (render t)
+  (place-image
+  (line (position-x-cor (trace-p2 t)) (position-y-cor(trace-p2 t)) "black")
+  (position-x-cor (trace-p1 t))
+  (position-y-cor (trace-p1 t))
+  MTS))
+;<use template from trace>
+
+
+;-------------------------------------------------------------------------
+;(@HtDF create-trace)
+;; trace Integer Integer MouseEvent -> trace
+;; move trace to mouse's x-coordinate
+;(check-expect (create-trace L1 0 0 "button-down") (make-trace )
+;(check-expect (handle-mouse 10 0 0 "button-down") 0)
+;(check-expect (handle-mouse 0 10 0 "button-down") 10)
+;(check-expect (handle-mouse 0 0 10 "button-down") 0)
+;(check-expect (handle-mouse 0 10 0 "button-up") 0)
+;(check-expect (handle-mouse 10 100 20 "button-down") 100)
+;;(check-expect (handle-mouse 10 600 20 "button-down") 600)
+;(check-expect (handle-mouse 600 100 20 "button-down") 100)
+
+;(define (create-trace t x-cor y-cor me) (make-trace P1 P1)) ;stub
