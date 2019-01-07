@@ -1,0 +1,326 @@
+(require 2htdp/image)
+;(require htdp/image)
+(require 2htdp/universe)
+(require spd/tags)           
+
+;;==========================================
+;; Constants
+
+(define WIDTH 500)
+(define HEIGHT 500)
+
+(define CTR-X (/ WIDTH 2))
+(define CTR-Y (/ HEIGHT 2))
+
+(define BKG-MAP (empty-scene 500 500))
+  
+(define MARKER (overlay 
+                (square 10 "solid" "yellow")
+                (square 10 "solid" "yellow")))
+
+(define OBW 50)
+(define OBH 50)
+(define OB-X CTR-X)
+(define OB-Y CTR-Y)
+
+(define OB1 (place-image (rectangle OBW OBH "solid" "green") OB-X OB-Y BKG-MAP))
+
+(define ALLPOS empty)
+
+;;=================================================
+;; Data Definitions:
+
+(@HtDD Position)
+(define-struct position (xpos ypos))
+;; Postition is (make-position Natural Natural)
+;; interp. the x, y position of an position on the screen
+
+(define P1 (make-position 100 50))
+(define P2 (make-position 200 300))
+(define P3 (make-position 200 100))
+(define P4 (make-position 350 25))
+(define P5 (make-position 350 550))
+
+#;
+(define (fn-for-position p)
+  (... (position-xpos)
+       (position-ypos)))
+
+(@HtDD ListOfPosition)
+;; ListOfEgg is one of:
+;; - empty
+;; - (cons Position ListOfPosition)
+;; interp. a list of positions
+(define LOP0 empty)
+(define LOP1 (cons P1 empty))
+(define LOP2 (list P1 P2 P3 P4 P5))
+#;
+(define (fn-for-lop lop)
+  (cond [(empty? lop) (...)]
+        [else
+         (... (fn-for-position (first lop))
+              (fn-for-lop (rest lop)))]))
+
+;;===================================================
+
+
+; Problems:(ranked from biggest to smallest problems)
+; - program is producing a filled in polygon shape instead of just a single line
+; - It goes through the obticle when it hits the bot of the box to the top or vice versa
+; + if xpos2 = xpos1 then lop is adding one to the ypos every time
+; - collison? for vertical lines still has bugs and doesnt seem to be working
+; * The first marker is in the middle of the line instead of at the end
+; * It should reset or something if you click inside the box becuase rn the program just stops
+
+
+
+;; Functions:
+
+(@HtDF main)
+(@signature ListOfPosition -> ListOfPosition)
+;; start the world with (main empty)
+;; no tests for main
+(@template htdw-main)
+(define (main lop) 
+  (big-bang lop                ;ListOfPosition
+    (to-draw render-markers)   ;ListOfPosition -> Image
+    (on-mouse mark-pos)))      ;ListOfPosition Integer Integer MouseEvent -> Image
+
+;--------------------------------------------------------------------------------------
+(@HtDF render-markers)
+(@signature ListOfPosition -> Image)
+;; place markers for each position
+
+(@template ListOfPosition)
+(define (render-markers lop)
+  (cond [(empty? lop) OB1]
+        ;[(empty? (rest lop)) (solve-m (first lop) (list (first lop) (make-position 50 50)))]))
+        [(empty? (rest lop))(place-marker (first lop) OB1)]
+        [else
+         (solve (leftmost(first lop) (second lop))
+                (rightmost (first lop) (second lop)))]))
+
+;(add-line (place-marker (first lop)
+;                            (render-markers (rest lop)))
+;             (position-xpos (first lop))
+;            (position-ypos (first lop))
+;           (position-xpos (second lop))
+;          (position-ypos (second lop))
+;         "blue")]))
+;(check-expect (render-markers empty) OB1)
+;(check-expect (render-markers (list (make-position 50 50))) (place-marker (make-position 50 50) OB1))
+;(check-expect (render-markers (list (make-position 50 50) (make-position 100 100))) (add-line (overlay (place-marker (make-position 50 50) OB1)
+;                                                                                                      (place-marker (make-position 100 100) OB1))
+;                                                                                            50 50 100 100 "blue"))
+
+;(check-expect (render-markers (list (make-position 50 50) (make-position 0 0))) (add-line (overlay (place-marker (make-position 50 50) OB1)
+;                                                                                                      (place-marker (make-position 0 0) OB1))
+;                                                                                            50 50 0 0 "blue"))
+;second marker isnt showing becuase the first marker is overlayed on top which includes the background
+;--------------------------------------------------------------------------------------
+;(tdemplate Position Positon -> Image or False
+(define (solve p1 p2)
+  (local[(define (solve-m p1 p2)
+           (if (not (collision? p1 p2))
+               (add-line (place-2marker p1 p2 OB1)
+                         (position-xpos p1)
+                         (position-ypos p1)
+                         (position-xpos p2)
+                         (position-ypos p2)
+                         "blue")
+              (solve-lom (next-pos p1) p1)))
+         ;     (add-line (solve-lom (next-pos p1))
+         ;              (position-xpos p1)
+         ;             (position-ypos p1)
+         ;            (position-xpos p2)
+         ;           (position-ypos p2)
+         ;          "blue")))
+         
+         (define (solve-lom lom p1)
+           (cond[(empty? lom) false]
+                [else
+                 (local[(define try (solve-m (first lom) p2))]
+                   (if (not (false? try))
+                       (add-line try (position-xpos p1)
+                                 (position-ypos p1)
+                                 (position-xpos p2)
+                                 (position-ypos p2)
+                                 "blue")
+                       (solve-lom (rest lom))))]))]
+    (solve-m p1 p2)))
+
+;(check-expect (solve (make-position 0 0) (make-position 50 55)) empty-image)
+;(check-expect (collision? (make-position 0 0) (make-position 5 5)) false)
+;(check-expect (solve (make-position 200 200) (make-position 300 300)) empty-image)
+;--------------------------------------------------------------------------------------
+                 
+;  [search-fn (make-position (add1 (position-x p1)) (position-y p1))
+
+;(define (next-pos p1) (make-position (add1 (position-xpos p1)) (position-ypos p1)))
+(define (next-pos p1)
+  (keep-valid (move-directions p1)))
+;--------------------------------------------------------------------------------------
+(define (Right p1) (make-position (add1 (position-xpos p1)) (position-ypos p1)))
+(define (Topright p1) (make-position (add1 (position-xpos p1)) (sub1 (position-ypos p1))))
+(define (Top p1) (make-position (position-xpos p1) (sub1 (position-ypos p1))))
+(define (Topleft p1) (make-position (sub1 (position-xpos p1)) (sub1 (position-ypos p1))))
+(define (Left p1)(make-position (sub1 (position-xpos p1)) (position-ypos p1)))
+(define (Botleft p1) (make-position (sub1 (position-xpos p1)) (add1 (position-ypos p1))))
+(define (Bot p1) (make-position (position-xpos p1) (add1 (position-ypos p1))))
+(define (Botright p1) (make-position (add1 (position-xpos p1)) (add1 (position-ypos p1))))
+
+(define (move-directions p1)                  
+  (list (Right p1)      ;right      1
+        (Topright p1)   ;topright   2
+        (Top p1)        ;top        3 Just realised all these directionsa re relative depending on the way you are going so this doesnt work a lot of the time.
+        (Topleft p1)    ;topleft    4
+        (Left p1)       ;left       5
+        (Botleft p1)    ;botleft    6
+        (Bot p1)        ;bot        7
+        (Botright p1))) ;botright   8
+
+;(check-expect (move-directions (make-position 250 250))
+;             (list
+;             (make-position 251 250)
+;            (make-position 251 249)
+;           (make-position 250 249)
+;          (make-position 249 249)
+;         (make-position 249 250)
+;        (make-position 249 251)
+;       (make-position 250 251)
+;      (make-position 251 251)))
+;-------------------------------------------------------------------------
+(define (leftmost p1 p2)
+  (if (<= (position-xpos p1)(position-xpos p2))
+      p1
+      p2))
+
+;(check-expect (leftmost P1 P2) P1)
+;-------------------------------------------------------------------------
+(define (rightmost p1 p2)
+  (if (> (position-xpos p1)(position-xpos p2))
+      p1
+      p2))
+
+;(check-expect (rightmost P1 P2) P2)
+;--------------------------------------------------------------------------------------
+
+(define (keep-valid lop)
+  ; (if (or (and (not (not-inside? (first lop))) (not (not-inside? (third lop))))
+  ;        (and (not (not-inside? (fifth lop))) (not (not-inside? (third lop)))))
+  (filter not-inside? lop))
+;   (filter not-inside? (list (first lop) (second lop) (third lop) (fourth lop) (fifth lop)))))
+
+;(check-expect (keep-valid (move-directions (make-position 250 250))) empty)
+;(check-expect (keep-valid (move-directions (make-position 224 225)))
+;   (list
+;   (make-position 225 224)
+;  (make-position 224 224)
+; (make-position 223 224)
+;(make-position 223 225)))
+;(keep-valid (move-directions (make-position 
+;--------------------------------------------------------------------------------------
+;; place MARKER at x and y
+
+(@template Position add-param)
+(define (place-marker p1 img)
+  (place-image MARKER (position-xpos p1) (position-ypos p1) img))
+;;i dont think this needs checks
+
+;--------------------------------------------------------------------------------------
+;; place 2 MARKER at their pos
+
+(@template Position add-param)
+(define (place-2marker p1 p2 img)
+  (place-image MARKER (position-xpos p1) (position-ypos p1) (place-image MARKER (position-xpos p2) (position-ypos p2) img)))
+;;i dont think this needs checks
+;--------------------------------------------------------------------------------------
+
+(@HtDF mark-pos)
+(@signature ListOfPosition Integer Integer MouseEvent -> ListOfPosition)
+;; add a marker at x, y when the mouse is clicked
+
+(@template MouseEvent add-param)
+(define (mark-pos lop x y me)
+  (cond [(and (mouse=? me "button-down")
+              (= (count lop) 0)) (list (make-position x y))]
+        [(and (mouse=? me "button-down")
+              (= (count lop) 1)) (cons (make-position x y) lop)]
+        [(and (mouse=? me "button-down")
+              (= (count lop) 2)) empty]
+        [else lop]))
+
+(define (count lop)
+  (cond [(empty? lop) 0]
+        [else (add1 (count (rest lop)))]))
+;;i dont think this needs checks
+;--------------------------------------------------------------------------------------
+
+
+(define (collision? p1 p2)    
+  (not (andmap not-inside? (collision p1 p2))))
+
+;(check-expect (collision? (make-position 0 0) (make-position 500 500)) true)
+;(check-expect (collision? (make-position 0 0) (make-position 50 50)) false)
+;--------------------------------------------------------------------------------------
+
+(define (collision p1 p2)
+  ;;produce list of positions at every position along the line
+  (local [(define XADD 1)]
+    (cons (make-position (position-xpos p1) (position-ypos p1))
+          (if (at-position p1 p2)
+              empty
+              (if (= (position-xpos p1) (position-xpos p2))
+                  (if (> (position-ypos p1) (position-ypos p2))
+                      (collision (make-position (position-xpos p1) (- (position-ypos p1) 1)) p2)
+                      (collision (make-position (position-xpos p1) (+ 1 (position-ypos p1))) p2))
+                  (collision (make-position (+ XADD (position-xpos p1))
+                                            (- (position-ypos p1)  (slope p1 p2))) p2))))))
+
+;(check-expect (collision (make-position 0 0) (make-position 5 5))
+;             (list
+;             (make-position 0 0)
+;            (make-position 1 1)
+;           (make-position 2 2)
+;          (make-position 3 3)
+;         (make-position 4 4)
+;        (make-position 5 5)))
+;--------------------------------------------------------------------------------------
+
+(define (slope p1 p2)
+  (if (= (position-xpos p2) (position-xpos p1))
+      0
+      (/ (- (position-ypos p1) (position-ypos p2))
+         (- (position-xpos p2) (position-xpos p1)))))
+
+;(check-expect (slope (make-position 0 0) (make-position 1 1)) -1) ;PASSES
+;(check-expect (slope (make-position 500 500) (make-position 0 0)) -1) ;PASSES **
+;--------------------------------------------------------------------------------------
+
+(define (at-position p1 p2)
+  (and (= (position-xpos p1)(position-xpos p2))
+       (= (position-ypos p1)(position-ypos p2))))
+
+
+;(check-expect (at-position (make-position 4 4) (make-position 4 4)) true) ;PASSES
+;(check-expect (at-position (make-position 34 465) (make-position 45 56)) false) ;PASSES
+;--------------------------------------------------------------------------------------
+
+(define (not-inside? p1)
+  (not (and (<= (position-xpos p1) (+ OB-X (/ OBW 2))) (>= (position-xpos p1) (- OB-X (/ OBW 2)))
+            (<= (position-ypos p1) (+ OB-Y (/ OBH 2))) (>= (position-ypos p1) (- OB-Y (/ OBH 2))))))
+;(check-expect (not-inside? (make-position 250 250)) false)
+;(check-expect (not-inside? (make-position 201 201)) true)
+;(check-expect (andmap not-inside? (list (make-position 224 224) (make-position 225 225) (make-position 226 226))) false) ;PASSES
+;(check-expect (andmap not-inside? (list (make-position 190 190) (make-position 191 191) (make-position 192 192))) true)  ;PASSES
+;--------------------------------------------------------------------------------------
+
+(define (hitpoint lop)
+  (local[(define (hitpoint lop acc)
+           (if (not-inside? (first lop))
+               (hitpoint (rest lop) (first lop))
+               acc))]
+    (hitpoint lop empty)))
+
+
+;(hitpoint (collision (make-position 0 0) (make-position 500 500)) (make-position 500 500))
